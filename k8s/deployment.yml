@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: indodanazwide-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: indodanazwide
+  template:
+    metadata:
+      labels:
+        app: indodanazwide
+    spec:
+      containers:
+        - name: indodanazwide-container
+          image: ghcr.io/devzwide/indodanazwide:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000

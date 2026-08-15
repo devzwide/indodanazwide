@@ -1,0 +1,24 @@
+name: Continuous Deployment
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  deploy-to-kubernetes:
+    name: Deploy to Kubernetes
+    runs-on: [self-hosted, Linux, X64, zwidek8sadmin]
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'dev')) }}
+    # environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Deploy application to Kubernetes
+        run: |
+          kubectl apply -f k8s/deployment.yml
+          kubectl apply -f k8s/service.yml
+          kubectl rollout status deployment/indodanazwide-deployment
