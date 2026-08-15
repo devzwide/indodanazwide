@@ -47,7 +47,7 @@ jobs:
     name: Detect Relevant Changes
     runs-on: ubuntu-latest
     outputs:
-      has-changes: ${{ steps.detect-changes.outputs.has-changes }}
+      has-changes: ${{ steps.detect-changes.outputs.changes }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -76,7 +76,7 @@ jobs:
     name: Test, Lint and Build App
     runs-on: ubuntu-latest
     needs: detect-changes
-    if: needs.detect-changes.outputs.has-changes == 'true'
+    if: needs.detect-changes.outputs.has-changes != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
