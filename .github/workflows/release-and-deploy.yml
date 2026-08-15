@@ -1,0 +1,60 @@
+name: Release and Deploy
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-and-push:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE=ghcr.io/${{ github.repository_owner }}/indodanazwide:${{ github.sha }}
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+  create-release:
+    name: Create GitHub release
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: Automated release from CI
+
+  deploy:
+    name: Deploy to cluster (runs on your self-hosted runner)
+    needs: create-release
+    runs-on: [self-hosted, Linux, X64, zwidek8sadmin]
+    # environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR (on self-hosted runner)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Deploy manifests
+        env:
+          APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/indodanazwide:${{ github.sha }}
+        run: |
+          kubectl -n default set image deployment/indodanazwide-deployment indodanazwide-container=$IMAGE || kubectl apply -f k8s/deployment.yml
+          kubectl apply -f k8s/service.yml
+          sed "s|{{APP_DOMAIN}}|${APP_DOMAIN}|g" k8s/ingress.yml | kubectl apply -f -
