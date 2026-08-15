@@ -38,6 +38,10 @@ on:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
