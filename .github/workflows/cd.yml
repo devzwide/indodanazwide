@@ -22,11 +22,16 @@ jobs:
     runs-on: [self-hosted, Linux, X64, zwidek8sadmin]
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'dev')) }}
     steps:
-      - name: Checkout code
-        uses: ./.github/actions/checkout
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.sha }}
+      - name: Checkout code (git clone fallback)
+        run: |
+          set -euo pipefail
+          git --version
+          rm -rf .git
+          git init
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+          git fetch --depth=1 origin "${{ github.sha }}" || git fetch --depth=1 origin
+          git checkout -f FETCH_HEAD || git checkout -f "${{ github.sha }}"
+          git submodule update --init --recursive || true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
