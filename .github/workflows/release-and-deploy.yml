@@ -15,6 +15,10 @@ permissions:
   packages: write
   id-token: write
 
+concurrency:
+  group: release-and-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   codeql:
     name: Run CodeQL analysis
