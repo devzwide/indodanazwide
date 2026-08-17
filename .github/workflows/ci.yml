@@ -41,6 +41,7 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -91,6 +92,16 @@ jobs:
           node-version: 24.x
           cache: "npm"
 
+      - name: Cache Vite cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            .vite
+            node_modules/.cache/vite
+          key: ${{ runner.os }}-vite-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vite-
+
       - name: Install dependencies
         run: npm ci
 
@@ -119,6 +130,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4
         with:
@@ -126,8 +143,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+      - name: Build and push Docker image (with cache)
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
@@ -135,3 +152,18 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/indodanazwide:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/indodanazwide:latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/indodanazwide:buildcache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/indodanazwide:buildcache,mode=max
+
+      - name: Scan pushed image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/indodanazwide:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          vuln-type: "os,library"
+
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/indodanazwide:${{ github.sha }}
