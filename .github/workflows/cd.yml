@@ -8,8 +8,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
+  id-token: write
 
 concurrency:
   group: continuous-deployment-${{ github.ref }}
